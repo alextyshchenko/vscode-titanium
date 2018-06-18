@@ -1,5 +1,4 @@
 .vscode/**
-typings/**
-test/**
+.vscode-test/**
 .gitignore
-.travis.yml
+vsc-extension-quickstart.md

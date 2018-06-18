@@ -4,34 +4,20 @@
     "description": "Meta package for SFCC Endless Aisle on Titanium",
     "version": "0.0.1",
     "publisher": "AlexT",
-    "license": "GNU",
-    "engines": {
-      "vscode": "^1.9.0"
-    },
+    "repository": "https://github.com/atyshchenko/endless-aisle-package",
     "icon": "icon.png",
-    "homepage": "https://github.com/atyshchenko/endless-aisle-package/blob/master/README.md",
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/atyshchenko/endless-aisle-package"
+    "engines": {
+        "vscode": "^1.24.0"
     },
-    "keywords": [
-      "titanium",
-      "endless",
-      "aisle",
-      "appcelerator"
-    ],
     "categories": [
-      "Other"
+        "Extension Packs"
     ],
-    "activationEvents": [
-      "workspaceContains:**/.tiapp.xml"
-    ],
-    "dependencies": {
-      "marcoduff.vscode-appcelerator": "^1.0.7",
-      "dbankier.vscode-titanium": "^0.5.0",
-      "dbaeumer.vscode-eslint": "^1.4.12",
-      "eamodio.gitlens": "^8.3.5",
-      "zhouronghui.propertylist": "^0.0.2",
-      "hookyqr.beautify": "^1.3.2"
-    }
-  }
+    "extensionDependencies": [ 
+        "marcoduff.vscode-appcelerator",
+        "dbankier.vscode-titanium",
+        "dbaeumer.vscode-eslint",
+        "eamodio.gitlens",
+        "zhouronghui.propertylist",
+        "hookyqr.beautify"
+    ]
+}
