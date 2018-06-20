@@ -16,6 +16,11 @@ function activate(context) {
 
     console.log('endless-aisle-package is active!');
 
+    console.log('Init vscode-icons');
+    writeInfo('Init vscode-icons');
+    vscode.commands.executeCommand('vscode-icons.activateIcons');
+    writeInfo('vscode-icons activated');
+
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiBuild', () => {
         return new Ti.TiBuild(Ti.BuildOption.Normal).launch();
     }));
@@ -32,6 +37,9 @@ function activate(context) {
         return new Ti.TiBuild().reinitLogger();
     }));
 
+    if (vscode.workspace.workspaceFolders == undefined) {
+        return;
+    }
 
 
     var projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
@@ -39,7 +47,7 @@ function activate(context) {
 
     if (!projectRoot.endsWith("/")) projectRoot += '/';
 
-    let disposable = vscode.commands.registerCommand('eapackage.init', function (params) {
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.init', function (params) {
         mainChannel.show();
         writeInfo('Checking jsbeautify configuration');
         var jsbeautifyrc = projectRoot + '.jsbeautifyrc';
@@ -114,14 +122,6 @@ function activate(context) {
                 });
             }
         });
-    });
-
-
-    console.log('Init vscode-icons');
-    writeInfo('Init vscode-icons');
-    vscode.commands.executeCommand('vscode-icons.activateIcons');
-    writeInfo('vscode-icons activated');
-
-    context.subscriptions.push(disposable);
+    }));
 }
 exports.activate = activate;

@@ -1,6 +1,5 @@
 "use strict";
 const vscode = require("vscode");
-var path = require('path');
 var shell = require('shelljs');
 var project_flag = ' --project-dir "' + vscode.workspace.rootPath + '"';
 var info;
