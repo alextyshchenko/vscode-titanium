@@ -2,7 +2,7 @@
     "name": "endless-aisle-package",
     "displayName": "Endless Aisle Package",
     "description": "Meta package for SFCC Endless Aisle on Titanium",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "publisher": "AlexT",
     "repository": "https://github.com/atyshchenko/endless-aisle-package",
     "icon": "icon.png",
@@ -12,12 +12,127 @@
     "categories": [
         "Extension Packs"
     ],
-    "extensionDependencies": [ 
-        "marcoduff.vscode-appcelerator",
+    "main": "./extension",
+    "activationEvents": [
+        "workspaceContains:tiapp.xml"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "eapackage.init",
+                "title": "EA: Init workspace for Endless Aisle"
+            },
+            {
+                "command": "eapackage.tiBuild",
+                "title": "EA: Build Titanium application"
+            },
+            {
+                "command": "eapackage.tiParamsBuild",
+                "title": "EA: Build Titanium application with params"
+            },
+            {
+                "command": "eapackage.tiClean",
+                "title": "EA: Clean Titanium data"
+            },
+            {
+                "command": "eapackage.connectLogger",
+                "title": "EA: Connect to logger"
+            }
+        ],
+        "menus": {
+            "editor/context": [
+                {
+                    "when": "editorHasSelection",
+                    "command": "eapackage.init",
+                    "group": "navigation@1"
+                }
+            ]
+        },
+        "keybindings": [
+            {
+                "command": "eapackage.init",
+                "key": "ctrl+shift+i",
+                "mac": "cmd+shift+i"
+            },
+            {
+                "command": "eapackage.tiBuild",
+                "key": "ctrl+shift+a",
+                "mac": "cmd+shift+a"
+            },
+            {
+                "command": "eapackage.connectLogger",
+                "key": "ctrl+shift+l",
+                "mac": "cmd+shift+l"
+            },
+            {
+                "command": "eapackage.tiClean",
+                "key": "ctrl+shift+c",
+                "mac": "cmd+shift+c"
+            },
+            {
+                "command": "eslint.executeAutofix",
+                "key": "ctrl+cmd+f",
+                "mac": "ctrl+cmd+f"
+            },
+            {
+                "command": "HookyQR.beautifyFile",
+                "key": "ctrl+cmd+b",
+                "mac": "ctrl+cmd+b"
+            },
+            {
+                "command": "HookyQR.beautify",
+                "key": "ctrl+cmd+s",
+                "mac": "ctrl+cmd+s"
+            }
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "Endless Aisle Package",
+            "properties": {
+                "eapackage.buildTarget": {
+                    "type": "string",
+                    "default": "iphone",
+                    "description": "Build target"
+                },
+                "eapackage.buildPlatform": {
+                    "type": "string",
+                    "default": "simulator",
+                    "description": "Build Platform"
+                },
+                "eapackage.buildDevice": {
+                    "type": "string",
+                    "default": "iPhone 5s",
+                    "description": "Build device version"
+                },
+                "eapackage.iosVersion": {
+                    "type": "string",
+                    "default": "11.4",
+                    "description": "iOS Version"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.6",
+        "eslint": "^4.11.0",
+        "@types/node": "^7.0.43",
+        "@types/mocha": "^2.2.42",
+        "fs": "^*",
+        "shelljs": "^0.5.3",
+        "alloy": "^1.13.0"
+    },
+    "extensionDependencies": [
         "dbankier.vscode-titanium",
         "dbaeumer.vscode-eslint",
         "eamodio.gitlens",
         "zhouronghui.propertylist",
-        "hookyqr.beautify"
+        "eg2.tslint",
+        "wayou.vscode-todo-highlight",
+        "robertohuertasm.vscode-icons"
     ]
 }
