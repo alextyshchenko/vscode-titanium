@@ -12,11 +12,8 @@
 
 ### Available key bindings
 
-* `cmd+shift+i` - Init workspace for Endless Aisle
 * `cmd+shift+a` - Build application with params from extension settings
 * `cmd+shift+l` - Connect to logger
-* `cmd+shift+c` - Clean Titanium data
-
 
 > Tip: For some commands was added key bindings
 
@@ -57,6 +54,10 @@ This extension contributes the following settings:
 ### 1.0.0
 
 Initial release of extension
+
+### 1.0.1
+
+Fixed issue with cmd+shift+c binding. Removed cmd+shift+i binding.
 
 
 **Enjoy!**
