@@ -30,10 +30,14 @@ var BuildOption;
     BuildOption[BuildOption["Appify"] = 2] = "Appify";
 })(BuildOption = exports.BuildOption || (exports.BuildOption = {}));
 var extra_flags_map = {
+    simulator: ' --log-level info',
+    device: ' --no-prompt --skip-js-minify --log-level info',
+    dist: ' --deploy-type production -T dist-adhoc --no-prompt --skip-js-minify --log-level info',
     [BuildOption.Normal]: "",
     [BuildOption.Shadow]: " --shadow",
     [BuildOption.Appify]: " --appify",
 };
+let channel = vscode.window.createOutputChannel("titanium");
 class TiBuild {
     constructor(type = BuildOption.Normal) {
         this.type = type;
@@ -72,16 +76,16 @@ class TiBuild {
             channel.append(data);
         });
     }
-    executeTiCommand(c) {
+    executeTiCommand(c, appc) {
         console.log(info);
         let self = this;
-        let channel = vscode.window.createOutputChannel("titanium");
         let logPort = null;
         let command = 'cd "' + vscode.workspace.rootPath + '" && ' +
-            'ti ' + c + project_flag
+            (appc ? 'appc ' : '') + 'ti ' + c + project_flag
             + ' -s ' + this.tiapp['sdk-version']
             + extra_flags_map[this.type];
         console.log(command);
+        channel.appendLine('Command: ' + command);
         var ti_command = shell.exec(command, { async: true });
         ti_command.stdout.on('data', function (data) {
             if (data.indexOf('Trying to connect to log server port') != -1) {
@@ -95,15 +99,97 @@ class TiBuild {
                 channel.appendLine('Reinit log connection');
                 self.reinitLogger(channel, logPort);
             }
+
+            if (data.indexOf('Appcelerator Login required to continue') != -1 || data.indexOf('Session invalid. Please log in again') != -1) {
+                self.stopBuild(true);
+                self.login(c, appc);
+            }
+
         });
+
         ti_command.stderr.on('data', function (data) {
             channel.append(data);
+            
+            if (data.indexOf('Invalid developer certificate') != -1) {
+                channel.append('Please execute: "ti setup" in terminal and select "iOS Settings"');
+            }
         });
         channel.show();
+    }
+
+    login(lastCommand, appc) {
+        let self = this;
+        channel.show();
+        channel.appendLine('Please enter Appcelerator Login');
+        vscode.window.showInputBox({
+            prompt: 'Please enter Appcelerator Login'
+        }).then(login => {
+            channel.appendLine('Please enter Appcelerator Password');
+            vscode.window.showInputBox({
+                prompt: 'Please enter Appcelerator Password',
+                password: true
+            }).then(password => {
+                var command = 'appc --username "' + login + '" --password "' + (password || '') + '" login';
+                
+                channel.appendLine('appc --username "' + login + '" --password "**********" login');
+                var login_command = shell.exec(command, { async: true });
+
+                login_command.stdout.on('data', function (data) {
+                    channel.append(data);
+
+                    if (data.indexOf(login + ' logged into organization') != -1) {
+                        vscode.window.showInformationMessage('You are Logged in');
+                        if (lastCommand) {
+                            channel.appendLine('Executing last command');
+                            self.executeTiCommand(lastCommand, appc);
+                        }
+                    }
+                    
+                });
+            });
+        });
+    }
+
+    logout() {
+        channel.show();
+
+        var command = 'appc logout';
+        channel.appendLine(command);
+        var login_command = shell.exec(command, { async: true });
+
+        login_command.stdout.on('data', function (data) {
+            channel.append(data);
+            if (data.indexOf('Logged Out') != -1) {
+                vscode.window.showInformationMessage('You are Logged out');
+            }
+        });
+    }
+
+    stopBuild(hidden) {
+        channel.show();
+        var stopCommand = shell.exec('PS -A | grep "node /usr/local/bin/ti build"', { async: true });
+
+        stopCommand.stdout.on('data', function (data) {
+            var pss = data.split('\n');
+            pss.every(str => {
+                if (str.indexOf('node /usr/local/bin/ti build -p') != -1) {
+                    var pid = str.split(' ')[0];
+
+                    channel.appendLine('kill ' + pid);
+                    shell.exec('kill ' + pid, { async: true });
+                }
+            });
+
+            channel.appendLine('Build stopped');
+            if (!hidden) {
+                vscode.window.showInformationMessage('All builds stopped');
+            }
+        });
     }
     
     launchIosSim(family, selected) {
         if (selected) {
+            this.type = 'simulator';
             return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + selected + '"');
         }
         let config = vscode.workspace.getConfiguration("eapackage");
@@ -172,34 +258,51 @@ class TiBuild {
         return vscode.window.showQuickPick(simulators.map(a => a.name + " (" + a.version + ")"))
             .then(s => this.launchIosSim(family, simulators.find(a => a.name === s.split(" (")[0]).udid));
     }
-    launchIosDevice(profile_uuid, device) {
+    launchIosDevice(profile_uuid, certName, device) {
         if (device) {
-            return this.executeTiCommand('build -p ios  -T device -P "' + profile_uuid + '" -C "' + device + '"');
+            this.type = 'device';
+            return this.executeTiCommand('build -p ios  -T device -V "' + certName + '" -P "' + profile_uuid + '" -C "' + device + '"', true);
         }
         if (info.ios.devices.length === 0) {
-            return this.launchIosDevice(profile_uuid, info.ios.device[0].udid);
+            return this.launchIosDevice(profile_uuid, certName, info.ios.device[0].udid);
         }
         return vscode.window.showQuickPick(info.ios.devices.map(a => a.name))
-            .then(s => this.launchIosDevice(profile_uuid, info.ios.devices.find(a => a.name === s).udid));
+            .then(s => this.launchIosDevice(profile_uuid, certName, info.ios.devices.find(a => a.name === s).udid));
     }
-    launchDevice(platform) {
-        var dev_profiles = info.ios.provisioning.development
-            .filter(o => !o.expired && !o.invalid)
-            .filter(o => this.tiapp['id'].indexOf(o.appId.replace(/\*/g, "")) !== -1);
-        return vscode.window.showQuickPick(dev_profiles.map(a => a.uuid + " " + a.name))
-            .then(s => {
-            let profile = dev_profiles.find(a => a.uuid === s.split(" ")[0]);
-            return this.launchIosDevice(profile.uuid);
-        });
+    launchDevice() {
+        var certs = Object
+            .keys(info.ios.certs.keychains);
+        
+        if (certs.length == 0 || info.ios.certs.keychains[certs[0]].developer.length == 0) {
+            vscode.window.showInformationMessage('Developer certificate not found! Please execute: "ti setup" in terminal and select "iOS Settings"');
+        } else {
+            vscode.window.showQuickPick(info.ios.certs.keychains[certs[0]].developer.map(a => a.name))
+            .then(certName => {
+                if (!certName) return;
+                
+                var dev_profiles = info.ios.provisioning.development
+                    .filter(o => !o.expired && !o.invalid)
+                    .filter(o => this.tiapp['id'].indexOf(o.appId.replace(/\*/g, "")) !== -1);
+                return vscode.window.showQuickPick(dev_profiles.map(a => a.uuid + " " + a.name))
+                    .then(s => {
+                        if (!s) return;
+
+                        let profile = dev_profiles.find(a => a.uuid === s.split(" ")[0]);
+                        return this.launchIosDevice(profile.uuid, certName);
+                });
+            });
+
+        }
     }
     launchIosDist(target) {
+        this.type = 'dist';
         var profiles = info.ios.provisioning[target.replace("dist-", "")]
             .filter(o => !o.expired && !o.invalid)
             .filter(o => this.tiapp['id'].indexOf(o.appId.replace(/\*/g, "")) !== -1);
         return vscode.window.showQuickPick(profiles.map(a => a.uuid + " " + a.name))
             .then(s => {
             let profile = profiles.find(a => a.uuid === s.split(" ")[0]);
-            return this.executeTiCommand('build -p ios  -T ' + target + ' -P "' + profile.uuid + '"' + ' -O dist');
+            return this.executeTiCommand('build -p ios  -T ' + target + ' -P "' + profile.uuid + '"' + ' -O dist', true);
         });
     }
     launchWithParams() {
@@ -218,12 +321,13 @@ class TiBuild {
             return vscode.window.showQuickPick(["simulator", "device", ...["dist-adhoc", "dist-appstore"]]);
         })
             .then(_target => {
+            if (!_target) return;
             target = _target;
             if (target === "simulator") {
                 return this.launchIosSimWithParams(platform);
             }
             else if (target === "device") {
-                return this.launchDevice(platform);
+                return this.launchDevice();
             }
             else {
                 return this.launchIosDist(target);
@@ -262,7 +366,7 @@ class TiBuild {
                 return this.launchIosSim(platform);
             }
             else if (target === "device") {
-                return this.launchDevice(platform);
+                return this.launchDevice();
             }
             else {
                 return this.launchIosDist(target);

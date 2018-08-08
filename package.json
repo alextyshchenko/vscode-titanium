@@ -2,7 +2,7 @@
     "name": "endless-aisle-package",
     "displayName": "Endless Aisle Package",
     "description": "Meta package for SFCC Endless Aisle on Titanium",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "publisher": "AlexT",
     "repository": "https://github.com/atyshchenko/endless-aisle-package",
     "icon": "icon.png",
@@ -33,6 +33,18 @@
             {
                 "command": "eapackage.tiClean",
                 "title": "EA: Clean Titanium data"
+            },
+            {
+                "command": "eapackage.appcLogin",
+                "title": "EA: Appcelerator login"
+            },
+            {
+                "command": "eapackage.appcLogout",
+                "title": "EA: Appcelerator logout"
+            },
+            {
+                "command": "eapackage.tiStopBuild",
+                "title": "EA: Stop current build"
             },
             {
                 "command": "eapackage.connectLogger",

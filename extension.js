@@ -22,10 +22,14 @@ function activate(context) {
     writeInfo('vscode-icons activated');
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiBuild', () => {
+        mainChannel.show();
+        writeInfo('Build started');
         return new Ti.TiBuild(Ti.BuildOption.Normal).launch();
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiParamsBuild', () => {
+        mainChannel.show();
+        writeInfo('Build with params started');
         return new Ti.TiBuild(Ti.BuildOption.Normal).launchWithParams();
     }));
 
@@ -33,8 +37,20 @@ function activate(context) {
         return new Ti.TiBuild().clean();
     }));
 
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.appcLogin', () => {
+        return new Ti.TiBuild().login();
+    }));
+
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.appcLogout', () => {
+        return new Ti.TiBuild().logout();
+    }));
+
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.connectLogger', () => {
         return new Ti.TiBuild().reinitLogger();
+    }));
+
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiStopBuild', () => {
+        return new Ti.TiBuild().stopBuild();
     }));
 
     if (vscode.workspace.workspaceFolders == undefined) {
@@ -115,13 +131,55 @@ function activate(context) {
                                 vscode.window.showInformationMessage('Alloy installed successful');
                             } else {
                                 writeError('ERROR - Alloy not installed. Please execute command in terminal: npm install -g alloy');
-                                vscode.window.showErrorMessage('Alloy not installed. Please execute command in terminal: npm install -g alloy');
+                                vscode.window.showErrorMessage('Alloy not installed. Please execute command in terminal: "npm install -g alloy" or "sudo npm install -g alloy"');
                             }
                         });
                     }
                 });
             }
         });
+
+        writeInfo('Checking Titanium CLI');
+        shell.exec("ti", function (code, output) {
+            if (output.includes('Titanium Command-Line Interface')) {
+                console.log("Titanium Command-Line Interface installed");
+                writeInfo('OK - Titanium Command-Line Interface installed');
+            } else {
+                writeInfo('WARN - Titanium Command-Line Interface not installed');
+                vscode.window.showInformationMessage("Titanium Command-Line Interface not installed");
+                console.log("Titanium Command-Line Interface not installed");
+
+                vscode.window.showQuickPick(["Install Titanium CLI", "Skip"]).then(value => {
+                    if (value == "Install Titanium CLI") {
+                        writeInfo('Еitanium instalation: npm install -g titanium');
+                        shell.exec("npm install -g titanium", function (code, output) {
+                            if (output.includes("+ titanium@")) {
+                                writeInfo('Titanium CLI installed successful');
+                                vscode.window.showInformationMessage('Alloy CLI installed successful');
+                            } else {
+                                writeError('ERROR - Titanium CLI not installed. Please execute command in terminal: npm install -g titanium');
+                                vscode.window.showErrorMessage('Titanium CLI not installed. Please execute command in terminal: "npm install -g titanium" or "sudo npm install -g titanium"');
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+        shell.exec("appc", function (code, output) {
+            if (output.includes('Appcelerator Command-Line Interface')) {
+                console.log("Appcelerator Command-Line Interface installed");
+                writeInfo('OK - Appcelerator Command-Line Interface installed');
+            } else {
+                writeInfo('WARN - Appcelerator Command-Line Interface not installed, command "appc" not available');
+                vscode.window.showInformationMessage("Appcelerator Command-Line Interface not installed");
+                console.log("Appcelerator Command-Line Interface not installed");
+
+                writeInfo('Please follow this instruction: https://docs.appcelerator.com/platform/latest/#!/guide/Titanium_Command-Line_Interface_Reference-section-src-35619828_TitaniumCommand-LineInterfaceReference-InstallandconfiguretheCLI');
+            }
+        });
+
+        writeInfo('Checking finished');
     }));
 }
 exports.activate = activate;

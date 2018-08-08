@@ -9,6 +9,10 @@
 * `EA: Build Titanium application with params` - Build application with promts
 * `EA: Clean Titanium data` - Clean project data
 * `EA: Connect to logger` - Connect to logger if simulator started
+* `EA: Appcelerator login` - Login to Appcelerator account
+* `EA: Appcelerator logout` - Logout from Appcelerator account
+* `EA: Stop current build` - Stop current builds
+
 
 ### Available key bindings
 
@@ -59,5 +63,10 @@ Initial release of extension
 
 Fixed issue with cmd+shift+c binding. Removed cmd+shift+i binding.
 
+### 1.0.2
+
+Fixed issue with device and dist builds. 
+Updated feature "Init workspace for Endless Aisle"
+Added features: Appcelerator login/logout, Build stop.
 
 **Enjoy!**
