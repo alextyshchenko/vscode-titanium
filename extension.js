@@ -24,13 +24,13 @@ function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiBuild', () => {
         mainChannel.show();
         writeInfo('Build started');
-        return new Ti.TiBuild(Ti.BuildOption.Normal).launch();
+        return new Ti.TiBuild().launch();
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiParamsBuild', () => {
         mainChannel.show();
         writeInfo('Build with params started');
-        return new Ti.TiBuild(Ti.BuildOption.Normal).launchWithParams();
+        return new Ti.TiBuild().launchWithParams();
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiClean', () => {
@@ -50,7 +50,11 @@ function activate(context) {
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiStopBuild', () => {
-        return new Ti.TiBuild().stopBuild();
+        return new Ti.TiBuild().stopBuild(false);
+    }));
+
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.repeatLast', () => {
+        return new Ti.TiBuild().executeLastBuild();
     }));
 
     if (vscode.workspace.workspaceFolders == undefined) {
