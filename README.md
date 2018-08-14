@@ -7,6 +7,7 @@
 * `EA: Init workspace for Endless Aisle` - Activate extensions and create needed files
 * `EA: Build Titanium application` - Build application with params from extension settings
 * `EA: Build Titanium application with params` - Build application with promts
+* `EA: Restart last build` - Restart build with last params
 * `EA: Clean Titanium data` - Clean project data
 * `EA: Connect to logger` - Connect to logger if simulator started
 * `EA: Appcelerator login` - Login to Appcelerator account
@@ -68,5 +69,10 @@ Fixed issue with cmd+shift+c binding. Removed cmd+shift+i binding.
 Fixed issue with device and dist builds. 
 Updated feature "Init workspace for Endless Aisle"
 Added features: Appcelerator login/logout, Build stop.
+
+### 1.0.3
+
+Fixed issue with logger.
+Added features: Restart last build, Colors in console output.
 
 **Enjoy!**
