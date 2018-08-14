@@ -5,6 +5,7 @@
     "version": "1.0.3",
     "publisher": "AlexT",
     "repository": "https://github.com/atyshchenko/endless-aisle-package",
+    "license": "MIT",
     "icon": "icon.png",
     "engines": {
         "vscode": "^1.24.0"
@@ -113,17 +114,17 @@
         "postinstall": "node ./node_modules/vscode/bin/install"
     },
     "dependencies": {
-        "alloy": "^1.13.0",
+        "alloy": "^1.13.1",
         "fs": "^*",
         "shelljs": "^0.5.3",
         "tslint": "^5.11.0"
     },
     "devDependencies": {
-        "typescript": "^2.6.1",
-        "vscode": "^1.1.16",
+        "@types/mocha": "^2.2.42",
+        "@types/node": "^7.0.69",
         "eslint": "^4.11.0",
-        "@types/node": "^7.0.43",
-        "@types/mocha": "^2.2.42"
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.21"
     },
     "extensionDependencies": [
         "dbankier.vscode-titanium",
