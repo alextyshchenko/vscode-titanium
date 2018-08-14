@@ -243,18 +243,19 @@ class TiBuild {
      */
     killPS(cmd, hidden) {
         channel.show();
-        var stopCommand = shell.exec('PS -A | grep "' + cmd, { async: true });
+        var stopCommand = shell.exec('PS -A | grep "' + cmd + '"', { async: true });
 
         stopCommand.stdout.on('data', function (data) { // tslint:disable-line
             var pss = data.split('\n');
-            pss.every(str => {
+            for (let i = 0; i < pss.length; i++) {
+                let str = pss[i];
                 if (str.includes(cmd)) {
                     var pid = str.split(' ')[0];
 
                     channel.appendLine('kill ' + pid);
-                    shell.exec('kill ' + pid, { async: true });
+                    shell.exec('kill ' + pid);
                 }
-            });
+            }
 
             channel.appendLine('Build stopped');
             if (!hidden) {
