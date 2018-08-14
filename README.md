@@ -75,4 +75,8 @@ Added features: Appcelerator login/logout, Build stop.
 Fixed issue with logger.
 Added features: Restart last build, Colors in console output.
 
+### 1.0.4
+
+Fixed some bugs.
+
 **Enjoy!**
