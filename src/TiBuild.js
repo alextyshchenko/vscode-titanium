@@ -3,18 +3,45 @@ const vscode = require("vscode");
 var shell = require('shelljs');
 var project_flag = ' --project-dir "' + vscode.workspace.rootPath + '"';
 var info;
-var logConnectAttempts = 120;
 var defaultLoggerPort = 42336;
-shell.exec("ti info -o json -t ios", function (code, output) {
-    console.log("activated");
-    info = JSON.parse(output);
-});
+let loggerPort = null;
+var tiapp = {};
+var ncLogger = null;
+var tiLog = vscode.window.createOutputChannel("ti_log");
+var lastCommand = {
+    cmd: '',
+    appc: false
+};
+
+function updateTiInfo() {
+    return new Promise((resolve, reject) => {
+        console.log('ti info -o json -t ios');
+        shell.exec("ti info -o json -t ios", function (code, output) {
+            info = JSON.parse(output);
+            if (code === 0) {
+                resolve(JSON.parse(output));
+            }
+            else {
+                console.log(output);
+                reject(output);
+            }
+        });
+    });
+}
+
 function getProjectConfig() {
     return new Promise((resolve, reject) => {
         console.log('ti project -o json' + project_flag);
         shell.exec('ti project -o json' + project_flag, function (code, output) {
             if (code === 0) {
-                resolve(JSON.parse(output));
+                try {
+                    var tiappData = JSON.parse(output);
+                    tiapp = tiappData;
+                    resolve(tiappData);
+                } catch (error) {
+                    console.log(error);
+                    reject(output);
+                }
             }
             else {
                 console.log(output);
@@ -29,95 +56,134 @@ var BuildOption;
     BuildOption[BuildOption["Shadow"] = 1] = "Shadow";
     BuildOption[BuildOption["Appify"] = 2] = "Appify";
 })(BuildOption = exports.BuildOption || (exports.BuildOption = {}));
-var extra_flags_map = {
-    simulator: ' --log-level info',
-    device: ' --no-prompt --skip-js-minify --log-level info',
-    dist: ' --deploy-type production -T dist-adhoc --no-prompt --skip-js-minify --log-level info',
-    [BuildOption.Normal]: "",
-    [BuildOption.Shadow]: " --shadow",
-    [BuildOption.Appify]: " --appify",
-};
 let channel = vscode.window.createOutputChannel("titanium");
 class TiBuild {
-    constructor(type = BuildOption.Normal) {
-        this.type = type;
-    }
-    reinitLogger(channel, logPort, initCount) {
-        if (channel == undefined) {
-            channel = vscode.window.createOutputChannel("ti_log");
-            channel.show();
+    /**
+     * reinitLogger - Reconnect to simulator logger
+     * 
+     * @api public
+     */
+    reinitLogger(logPort = defaultLoggerPort) {
+        tiLog && tiLog.show();
+
+        if (ncLogger && ncLogger.exitCode !== null) {
+            ncLogger = null;
         }
 
-        if (logPort == undefined) {
-            logPort = defaultLoggerPort;
-        }
-
-        if (initCount == undefined) {
-            initCount = logConnectAttempts;
-        } else if (initCount < 0) {
-            channel.appendLine('Can`t connect to logger, exit. You can connect to logger manually. Command "EA: Connect to logger"');
+        if (ncLogger && ncLogger.spawnargs && ncLogger.spawnargs[2].includes(logPort)) {
             return;
         }
 
-        let self = this;
         let command = 'nc 127.0.0.1 ' + logPort;
-        channel.appendLine('Reconnect to logger, ' + initCount + ' sec left');
-        var nc = shell.exec(command, { async: true });
-        nc.stdout.on('end', function () {
-            setTimeout(function(){
-                self.reinitLogger(channel, logPort, --initCount);
-            }, 1000);
-        });
-        nc.stdout.on('data', function (data) {
-            if (initCount < logConnectAttempts) {
-                initCount = logConnectAttempts;
-            }
+        tiLog.appendLine('Connect to logger on port: ' + logPort);
+        ncLogger = shell.exec(command, { async: true });
 
-            channel.append(data);
+        ncLogger.stdout.on('end', function () { // tslint:disable-line
+            tiLog.appendLine('Logger was disconnected. You can connect to logger manually. Command "EA: Connect to logger"');
+        });
+        ncLogger.stdout.on('data', function (data) { // tslint:disable-line
+            tiLog.append(data);
         });
     }
-    executeTiCommand(c, appc) {
-        console.log(info);
+
+    initLogger() {
+        this.reinitLogger(loggerPort ? loggerPort : defaultLoggerPort);
+    }
+
+    /**
+     * executeTiCommand - Execute Titanium command
+     * 
+     * @param {String} cmd - Titanium command
+     * @param {boolean} appc - Rum Titanium command through Appcelerator CLI
+     * 
+     * @api private
+     */
+    executeTiCommand(cmd, appc) {
+        if (cmd.includes('build')) {
+            lastCommand = {
+                cmd: cmd,
+                appc: appc
+            };
+        }
+
         let self = this;
-        let logPort = null;
         let command = 'cd "' + vscode.workspace.rootPath + '" && ' +
-            (appc ? 'appc ' : '') + 'ti ' + c + project_flag
-            + ' -s ' + this.tiapp['sdk-version']
-            + extra_flags_map[this.type];
+            (appc ? 'appc ' : '') + 'ti ' + cmd + project_flag
+            + ' -s ' + tiapp['sdk-version'];
         console.log(command);
         channel.appendLine('Command: ' + command);
         var ti_command = shell.exec(command, { async: true });
-        ti_command.stdout.on('data', function (data) {
-            if (data.indexOf('Trying to connect to log server port') != -1) {
-                logPort = data.split('port ')[1].replace('...', '');
-                console.log('Logger port: ' + logPort);
+        ti_command.stdout.on('data', function (data) { // tslint:disable-line
+            if (data.includes('Trying to connect to log server port')) {
+                loggerPort = data.split('port ')[1].replace('...', '');
+                console.log('Logger port: ' + loggerPort);
             }
 
             channel.append(data);
 
-            if (data.indexOf('End simulator log') != -1) {
-                channel.appendLine('Reinit log connection');
-                self.reinitLogger(channel, logPort);
+            if (data.includes('End simulator log')) {
+                channel.appendLine('Logger was disconnected. You can connect to logger manually. Command "EA: Connect to logger"');
             }
 
-            if (data.indexOf('Appcelerator Login required to continue') != -1 || data.indexOf('Session invalid. Please log in again') != -1) {
-                self.stopBuild(true);
-                self.login(c, appc);
+            if (data.includes('Appcelerator Login required to continue') || data.includes('Session invalid. Please log in again')) {
+                self.killPS('ti build', true);
+                self.login();
             }
 
         });
 
-        ti_command.stderr.on('data', function (data) {
+        ti_command.stderr.on('data', function (data) { // tslint:disable-line
             channel.append(data);
+
+            if (data.includes('BUILD FAILED')) {
+                setTimeout(function() {
+                    channel.appendLine('Please try to clean project data. Command: "EA: Clean Titanium data"');
+                }, 1000);
+            }
+
+            if (data.includes('Alloy compiler failed')) {
+                channel.appendLine('Please try to clean project data. Command: "EA: Clean Titanium data"');
+            }
             
-            if (data.indexOf('Invalid developer certificate') != -1) {
+            if (data.includes('Another process is currently bound to port')) {
+                setTimeout(function() {
+                    self.killPS('nc 127.0.0.1', true);
+                    channel.appendLine('Logger process was killed.');
+                    self.killPS('ti build', true);
+                    channel.appendLine('Build process was killed.\n Please close Simulator and restart build. Command "EA: Restart last build"');
+                }, 1000);
+            }
+
+            if (data.includes('Invalid developer certificate')) {
                 channel.append('Please execute: "ti setup" in terminal and select "iOS Settings"');
             }
         });
         channel.show();
     }
 
-    login(lastCommand, appc) {
+    /**
+     * executeLastBuild - Execute last build
+     * 
+     * @api public
+     */
+    executeLastBuild() {
+        if (!lastCommand.cmd) {
+            vscode.window.showInformationMessage('Last build params not found');
+            return;
+        }
+
+        return updateTiInfo().then(getProjectConfig)
+            .then(() => {
+                this.executeTiCommand(lastCommand.cmd, lastCommand.appc);
+            });
+    }
+
+    /**
+     * login - Login to Appcelerator account
+     * 
+     * @api public
+     */
+    login() {
         let self = this;
         channel.show();
         channel.appendLine('Please enter Appcelerator Login');
@@ -134,15 +200,12 @@ class TiBuild {
                 channel.appendLine('appc --username "' + login + '" --password "**********" login');
                 var login_command = shell.exec(command, { async: true });
 
-                login_command.stdout.on('data', function (data) {
+                login_command.stdout.on('data', function (data) { // tslint:disable-line
                     channel.append(data);
 
-                    if (data.indexOf(login + ' logged into organization') != -1) {
+                    if (data.includes(login + ' logged into organization')) {
                         vscode.window.showInformationMessage('You are Logged in');
-                        if (lastCommand) {
-                            channel.appendLine('Executing last command');
-                            self.executeTiCommand(lastCommand, appc);
-                        }
+                        self.executeLastBuild();
                     }
                     
                 });
@@ -150,6 +213,11 @@ class TiBuild {
         });
     }
 
+    /**
+     * logout - Logout from Appcelerator account
+     * 
+     * @api public
+     */
     logout() {
         channel.show();
 
@@ -157,22 +225,30 @@ class TiBuild {
         channel.appendLine(command);
         var login_command = shell.exec(command, { async: true });
 
-        login_command.stdout.on('data', function (data) {
+        login_command.stdout.on('data', function (data) { // tslint:disable-line
             channel.append(data);
-            if (data.indexOf('Logged Out') != -1) {
+            if (data.includes('Logged Out')) {
                 vscode.window.showInformationMessage('You are Logged out');
             }
         });
     }
 
-    stopBuild(hidden) {
+    /**
+     * killPS - Kill command from PS
+     * 
+     * @param {string} cmd - Command to kill
+     * @param {boolean} hidden - Kill without information message
+     * 
+     * @api public
+     */
+    killPS(cmd, hidden) {
         channel.show();
-        var stopCommand = shell.exec('PS -A | grep "node /usr/local/bin/ti build"', { async: true });
+        var stopCommand = shell.exec('PS -A | grep "' + cmd, { async: true });
 
-        stopCommand.stdout.on('data', function (data) {
+        stopCommand.stdout.on('data', function (data) { // tslint:disable-line
             var pss = data.split('\n');
             pss.every(str => {
-                if (str.indexOf('node /usr/local/bin/ti build -p') != -1) {
+                if (str.includes(cmd)) {
                     var pid = str.split(' ')[0];
 
                     channel.appendLine('kill ' + pid);
@@ -187,10 +263,17 @@ class TiBuild {
         });
     }
     
-    launchIosSim(family, selected) {
-        if (selected) {
-            this.type = 'simulator';
-            return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + selected + '"');
+    /**
+     * launchIosSim - Build for IOS simulator, load params from configuration
+     * 
+     * @param {string} family - Device family (iphone, ipad, etc.)
+     * @param {string} udid - Target simulator's UDID
+     * 
+     * @api private
+     */
+    launchIosSim(family, udid) {
+        if (udid) {
+            return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + udid + '" --log-level info', false);
         }
         let config = vscode.workspace.getConfiguration("eapackage");
         var simulators = Object
@@ -241,34 +324,65 @@ class TiBuild {
         return vscode.window.showQuickPick(simulators.map(a => a.name + " (" + a.version + ")"))
             .then(s => this.launchIosSim(family, simulators.find(a => a.name === s.split(" (")[0]).udid));
     }
-    launchIosSimWithParams(family, selected) {
-        if (selected) {
-            return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + selected + '"');
+
+    /**
+     * launchIosSimWithParams - Build for IOS simulator, ask build params
+     * 
+     * @param {string} family - Device family (iphone, ipad, etc.)
+     * @param {string} udid - Target simulator's UDID
+     * 
+     * @api private
+     */
+    launchIosSimWithParams(family, udid) {
+        if (udid) {
+            return this.launchIosSim(family, udid);
         }
         var simulators = Object
             .keys(info.ios.simulators.ios)
             .reduce((acc, ver) => acc.concat(info.ios.simulators.ios[ver]), [])
             .filter(o => o.family === family);
         if (simulators.length === 0) {
-            return vscode.window.showErrorMessage("No Ios simulators found");
+            return vscode.window.showErrorMessage("No iOS simulators found");
         }
         if (simulators.length === 1) {
             return this.launchIosSim(family, simulators[0].udid);
         }
         return vscode.window.showQuickPick(simulators.map(a => a.name + " (" + a.version + ")"))
-            .then(s => this.launchIosSim(family, simulators.find(a => a.name === s.split(" (")[0]).udid));
+            .then(device => {
+                if (!device) return;
+
+                this.launchIosSim(family, simulators.find(a => a.name === device.split(" (")[0]).udid)
+            });
     }
-    launchIosDevice(profile_uuid, certName, device) {
-        if (device) {
-            this.type = 'device';
-            return this.executeTiCommand('build -p ios  -T device -V "' + certName + '" -P "' + profile_uuid + '" -C "' + device + '"', true);
+
+    /**
+     * launchIosDevice - Build for IOS device. Show device picker, if device not selected
+     * 
+     * @param {string} profile_uuid - Provision profile UUID
+     * @param {string} certName - Certificate name
+     * @param {string} deviceUDID - Target device UDID
+     * 
+     * @api private
+     */
+    launchIosDevice(profile_uuid, certName, deviceUDID) {
+        if (deviceUDID) {
+            return this.executeTiCommand('build -p ios  -T device -V "' + certName + '" -P "' + profile_uuid + '" -C "' + deviceUDID + '" --no-prompt --skip-js-minify --log-level info', true);
         }
-        if (info.ios.devices.length === 0) {
-            return this.launchIosDevice(profile_uuid, certName, info.ios.device[0].udid);
+        if (info.ios.devices.length === 1) {
+            channel.appendLine('Found only one device. Selected: ' + info.ios.devices[0].name + ' UDID: ' + info.ios.devices[0].name);
+            vscode.window.showInformationMessage('Found only one device. Selected: ' + info.ios.devices[0].name);
+
+            return this.launchIosDevice(profile_uuid, certName, info.ios.devices[0].udid);
         }
         return vscode.window.showQuickPick(info.ios.devices.map(a => a.name))
             .then(s => this.launchIosDevice(profile_uuid, certName, info.ios.devices.find(a => a.name === s).udid));
     }
+
+    /**
+     * launchDevice - Prepare params for build to IOS device. Show certificate and provision pickers.
+     * 
+     * @api private
+     */
     launchDevice() {
         var certs = Object
             .keys(info.ios.certs.keychains);
@@ -276,108 +390,137 @@ class TiBuild {
         if (certs.length == 0 || info.ios.certs.keychains[certs[0]].developer.length == 0) {
             vscode.window.showInformationMessage('Developer certificate not found! Please execute: "ti setup" in terminal and select "iOS Settings"');
         } else {
-            vscode.window.showQuickPick(info.ios.certs.keychains[certs[0]].developer.map(a => a.name))
+            return vscode.window.showQuickPick(info.ios.certs.keychains[certs[0]].developer.map(a => a.name))
             .then(certName => {
                 if (!certName) return;
                 
                 var dev_profiles = info.ios.provisioning.development
                     .filter(o => !o.expired && !o.invalid)
-                    .filter(o => this.tiapp['id'].indexOf(o.appId.replace(/\*/g, "")) !== -1);
+                    .filter(o => tiapp['id'].includes(o.appId.replace(/\*/g, "")));
                 return vscode.window.showQuickPick(dev_profiles.map(a => a.uuid + " " + a.name))
-                    .then(s => {
-                        if (!s) return;
+                .then(s => {
+                    if (!s) return;
 
-                        let profile = dev_profiles.find(a => a.uuid === s.split(" ")[0]);
-                        return this.launchIosDevice(profile.uuid, certName);
+                    let profile = dev_profiles.find(a => a.uuid === s.split(" ")[0]);
+                    return this.launchIosDevice(profile.uuid, certName, null);
                 });
             });
-
         }
     }
-    launchIosDist(target) {
-        this.type = 'dist';
-        var profiles = info.ios.provisioning[target.replace("dist-", "")]
+
+    /**
+     * launchIosDist - Build to package. Show provision picker.
+     * 
+     * @api private
+     */
+    launchIosDist(distType) {
+        var provisions = info.ios.provisioning[distType.replace("dist-", "")]
             .filter(o => !o.expired && !o.invalid)
-            .filter(o => this.tiapp['id'].indexOf(o.appId.replace(/\*/g, "")) !== -1);
-        return vscode.window.showQuickPick(profiles.map(a => a.uuid + " " + a.name))
-            .then(s => {
-            let profile = profiles.find(a => a.uuid === s.split(" ")[0]);
-            return this.executeTiCommand('build -p ios  -T ' + target + ' -P "' + profile.uuid + '"' + ' -O dist', true);
+            .filter(o => tiapp['id'].includes(o.appId.replace(/\*/g, "")));
+        return vscode.window.showQuickPick(provisions.map(a => a.uuid + " " + a.name))
+        .then(profileName => {
+            if (!profileName) return;
+
+            let provision = provisions.find(a => a.uuid === profileName.split(" ")[0]);
+
+            if (!provision) {
+                vscode.window.showErrorMessage("Provision not found.");
+                return;
+            }
+
+            return this.executeTiCommand('build -p ios  -T ' + distType + ' -P "' + provision.uuid + '"' + ' -O dist --deploy-type production --no-prompt --skip-js-minify --log-level info', true);
         });
     }
+
+    /**
+     * launchWithParams - Prepare params for Build. Show deviceFamily and target pickers.
+     * 
+     * @api public
+     */
     launchWithParams() {
-        var platform;
-        var target;
-        var device_id;
-        return getProjectConfig()
-            .then(_tiapp => {
-            this.tiapp = _tiapp;
+        var deploymentTarget;
+        return updateTiInfo().then(inf => {
+            return getProjectConfig()
+            .then(this.showDeploymentTargetPicker)
+            .then((_deploymentTarget) => {
+                if (!_deploymentTarget) return;
 
-            var targets = Object.keys(this.tiapp["deployment-targets"]).filter(a => this.tiapp["deployment-targets"][a]);
-            return vscode.window.showQuickPick(targets);
-        })
-            .then((_platform) => {
-            platform = _platform;
-            return vscode.window.showQuickPick(["simulator", "device", ...["dist-adhoc", "dist-appstore"]]);
-        })
-            .then(_target => {
-            if (!_target) return;
-            target = _target;
-            if (target === "simulator") {
-                return this.launchIosSimWithParams(platform);
-            }
-            else if (target === "device") {
-                return this.launchDevice();
-            }
-            else {
-                return this.launchIosDist(target);
-            }
+                deploymentTarget = _deploymentTarget;
+                return this.showBuildTypePicker();
+            })
+            .then(buildType => {
+                if (!buildType) return;
+
+                switch (buildType) {
+                    case 'simulator':
+                        return this.launchIosSimWithParams(deploymentTarget, null);
+                    case 'device':
+                        return this.launchDevice();
+                    default:
+                        return this.launchIosDist(buildType);
+                }
+            });
         });
     }
+
+    /**
+     * launch - Start build with saved params.
+     * 
+     * @api public
+     */
     launch() {
-        var platform;
-        var target;
-        var device_id;
+        var deploymentTarget;
         let config = vscode.workspace.getConfiguration("eapackage");
-        return getProjectConfig()
-            .then(_tiapp => {
-            this.tiapp = _tiapp;
-
-            if(config["buildTarget"]) {
-                return config["buildTarget"];
-            }
-
-            var targets = Object.keys(this.tiapp["deployment-targets"]).filter(a => this.tiapp["deployment-targets"][a]);
-            return vscode.window.showQuickPick(targets);
-        })
-            .then((_platform) => {
-            platform = _platform;
-
-            if(config["buildPlatform"]) {
-                return config["buildPlatform"];
-            }
-
-            return vscode.window.showQuickPick(["simulator", "device", ...["dist-adhoc", "dist-appstore"]]);
-        })
-            .then(_target => {
-            target = _target;
-
-            if (target === "simulator") {
-                return this.launchIosSim(platform);
-            }
-            else if (target === "device") {
-                return this.launchDevice();
-            }
-            else {
-                return this.launchIosDist(target);
-            }
+        return updateTiInfo().then(inf => {
+            return getProjectConfig()
+                .then(() => {
+                    return config["buildTarget"] ? config["buildTarget"] : this.showDeploymentTargetPicker();
+                })
+                .then((_deploymentTarget) => {
+                    deploymentTarget = _deploymentTarget;
+                    return config["buildPlatform"] ? config["buildPlatform"] : this.showBuildTypePicker();
+                })
+                .then(buildType => {
+                    switch (buildType) {
+                        case 'simulator':
+                            return this.launchIosSim(deploymentTarget, null);
+                        case 'device':
+                            return this.launchDevice();
+                        default:
+                            return this.launchIosDist(buildType);
+                    }
+                });
         });
     }
+
+    /**
+     * showDeploymentTargetPicker - Show deployment target picker
+     * 
+     * @api private
+     */
+    showDeploymentTargetPicker() {
+        var availableTargets = Object.keys(tiapp["deployment-targets"]).filter(a => tiapp["deployment-targets"][a]);
+        return vscode.window.showQuickPick(availableTargets);
+    }
+
+    /**
+     * showBuildTypePicker - Show build type picker
+     * 
+     * @api private
+     */
+    showBuildTypePicker() {
+        return vscode.window.showQuickPick(["simulator", "device", ...["dist-adhoc", "dist-enterprise", "dist-distribution", "dist-appstore"]]);
+    }
+
+    /**
+     * clean - Clean build data.
+     * 
+     * @api public
+     */
     clean() {
         return getProjectConfig()
-            .then(_tiapp => {
-            this.tiapp = _tiapp;
-            return this.executeTiCommand('clean');
+            .then(() => {
+            return this.executeTiCommand('clean', false);
         });
     }
 }
