@@ -69,6 +69,17 @@ function activate(context) {
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.init', function (params) {
         mainChannel.show();
+
+        writeInfo('Checking opened directory');
+        var tiapp = projectRoot + 'tiapp.xml';
+        fs.exists(tiapp, (exists) => {
+            if (exists) {
+                writeInfo('OK - tiapp.xml is exist.');
+            } else {
+                writeError('ERROR - tiapp.xml not found');
+            }
+        });
+
         writeInfo('Checking jsbeautify configuration');
         var jsbeautifyrc = projectRoot + '.jsbeautifyrc';
         fs.exists(jsbeautifyrc, (exists) => {

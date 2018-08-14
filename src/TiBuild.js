@@ -15,14 +15,17 @@ var lastCommand = {
 
 function updateTiInfo() {
     return new Promise((resolve, reject) => {
-        console.log('ti info -o json -t ios');
-        shell.exec("ti info -o json -t ios", function (code, output) {
+        let cmd = 'ti info -o json -t ios';
+        console.log(cmd);
+        channel.appendLine(cmd);
+        shell.exec(cmd, function (code, output) {
             info = JSON.parse(output);
             if (code === 0) {
                 resolve(JSON.parse(output));
-            }
-            else {
+            } else {
                 console.log(output);
+                channel.append(output);
+                channel.show();
                 reject(output);
             }
         });
@@ -31,8 +34,10 @@ function updateTiInfo() {
 
 function getProjectConfig() {
     return new Promise((resolve, reject) => {
-        console.log('ti project -o json' + project_flag);
-        shell.exec('ti project -o json' + project_flag, function (code, output) {
+        let cmd = 'ti project -o json' + project_flag;
+        console.log(cmd);
+        channel.appendLine(cmd);
+        shell.exec(cmd, function (code, output) {
             if (code === 0) {
                 try {
                     var tiappData = JSON.parse(output);
@@ -40,11 +45,14 @@ function getProjectConfig() {
                     resolve(tiappData);
                 } catch (error) {
                     console.log(error);
+                    channel.append(error);
                     reject(output);
                 }
-            }
-            else {
+            } else {
                 console.log(output);
+                channel.append(output);
+                channel.show();
+                return vscode.window.showErrorMessage('Invalid project directory. Please open directory with tiapp.xml');
                 reject(output);
             }
         });
