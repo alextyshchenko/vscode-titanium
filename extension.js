@@ -46,11 +46,11 @@ function activate(context) {
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.connectLogger', () => {
-        return new Ti.TiBuild().reinitLogger();
+        return new Ti.TiBuild().initLogger();
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiStopBuild', () => {
-        return new Ti.TiBuild().stopBuild(false);
+        return new Ti.TiBuild().killPS('ti build', false);
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.repeatLast', () => {

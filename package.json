@@ -2,7 +2,7 @@
     "name": "endless-aisle-package",
     "displayName": "Endless Aisle Package",
     "description": "Meta package for SFCC Endless Aisle on Titanium",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "publisher": "AlexT",
     "repository": "https://github.com/atyshchenko/endless-aisle-package",
     "icon": "icon.png",
@@ -48,7 +48,7 @@
             },
             {
                 "command": "eapackage.repeatLast",
-                "title": "EA: Repeat last build"
+                "title": "EA: Restart last build"
             },
             {
                 "command": "eapackage.connectLogger",
@@ -132,6 +132,7 @@
         "zhouronghui.propertylist",
         "eg2.tslint",
         "wayou.vscode-todo-highlight",
+        "IBM.output-colorizer",
         "robertohuertasm.vscode-icons"
     ]
 }

@@ -3,9 +3,11 @@ const vscode = require("vscode");
 var shell = require('shelljs');
 var project_flag = ' --project-dir "' + vscode.workspace.rootPath + '"';
 var info;
-var logConnectAttempts = 120;
 var defaultLoggerPort = 42336;
+let loggerPort = null;
 var tiapp = {};
+var ncLogger = null;
+var tiLog = vscode.window.createOutputChannel("ti_log");
 var lastCommand = {
     cmd: '',
     appc: false
@@ -61,39 +63,31 @@ class TiBuild {
      * 
      * @api public
      */
-    reinitLogger(channel, logPort, initCount) {
-        if (channel == undefined) {
-            channel = vscode.window.createOutputChannel("ti_log");
-            channel.show();
+    reinitLogger(logPort = defaultLoggerPort) {
+        tiLog && tiLog.show();
+
+        if (ncLogger && ncLogger.exitCode !== null) {
+            ncLogger = null;
         }
 
-        if (logPort == undefined) {
-            logPort = defaultLoggerPort;
-        }
-
-        if (initCount == undefined) {
-            initCount = logConnectAttempts;
-        } else if (initCount < 0) {
-            channel.appendLine('Can`t connect to logger, exit. You can connect to logger manually. Command "EA: Connect to logger"');
+        if (ncLogger && ncLogger.spawnargs && ncLogger.spawnargs[2].includes(logPort)) {
             return;
         }
 
-        let self = this;
         let command = 'nc 127.0.0.1 ' + logPort;
-        channel.appendLine('Reconnect to logger, ' + initCount + ' sec left');
-        var nc = shell.exec(command, { async: true });
-        nc.stdout.on('end', function () { // tslint:disable-line
-            setTimeout(function(){
-                self.reinitLogger(channel, logPort, --initCount);
-            }, 1000);
-        });
-        nc.stdout.on('data', function (data) { // tslint:disable-line
-            if (initCount < logConnectAttempts) {
-                initCount = logConnectAttempts;
-            }
+        tiLog.appendLine('Connect to logger on port: ' + logPort);
+        ncLogger = shell.exec(command, { async: true });
 
-            channel.append(data);
+        ncLogger.stdout.on('end', function () { // tslint:disable-line
+            tiLog.appendLine('Logger was disconnected. You can connect to logger manually. Command "EA: Connect to logger"');
         });
+        ncLogger.stdout.on('data', function (data) { // tslint:disable-line
+            tiLog.append(data);
+        });
+    }
+
+    initLogger() {
+        this.reinitLogger(loggerPort ? loggerPort : defaultLoggerPort);
     }
 
     /**
@@ -113,7 +107,6 @@ class TiBuild {
         }
 
         let self = this;
-        let logPort = null;
         let command = 'cd "' + vscode.workspace.rootPath + '" && ' +
             (appc ? 'appc ' : '') + 'ti ' + cmd + project_flag
             + ' -s ' + tiapp['sdk-version'];
@@ -122,19 +115,18 @@ class TiBuild {
         var ti_command = shell.exec(command, { async: true });
         ti_command.stdout.on('data', function (data) { // tslint:disable-line
             if (data.includes('Trying to connect to log server port')) {
-                logPort = data.split('port ')[1].replace('...', '');
-                console.log('Logger port: ' + logPort);
+                loggerPort = data.split('port ')[1].replace('...', '');
+                console.log('Logger port: ' + loggerPort);
             }
 
             channel.append(data);
 
             if (data.includes('End simulator log')) {
-                channel.appendLine('Reinit log connection');
-                self.reinitLogger(channel, logPort);
+                channel.appendLine('Logger was disconnected. You can connect to logger manually. Command "EA: Connect to logger"');
             }
 
             if (data.includes('Appcelerator Login required to continue') || data.includes('Session invalid. Please log in again')) {
-                self.stopBuild(true);
+                self.killPS('ti build', true);
                 self.login();
             }
 
@@ -142,7 +134,26 @@ class TiBuild {
 
         ti_command.stderr.on('data', function (data) { // tslint:disable-line
             channel.append(data);
+
+            if (data.includes('BUILD FAILED')) {
+                setTimeout(function() {
+                    channel.appendLine('Please try to clean project data. Command: "EA: Clean Titanium data"');
+                }, 1000);
+            }
+
+            if (data.includes('Alloy compiler failed')) {
+                channel.appendLine('Please try to clean project data. Command: "EA: Clean Titanium data"');
+            }
             
+            if (data.includes('Another process is currently bound to port')) {
+                setTimeout(function() {
+                    self.killPS('nc 127.0.0.1', true);
+                    channel.appendLine('Logger process was killed.');
+                    self.killPS('ti build', true);
+                    channel.appendLine('Build process was killed.\n Please close Simulator and restart build. Command "EA: Restart last build"');
+                }, 1000);
+            }
+
             if (data.includes('Invalid developer certificate')) {
                 channel.append('Please execute: "ti setup" in terminal and select "iOS Settings"');
             }
@@ -223,20 +234,21 @@ class TiBuild {
     }
 
     /**
-     * stopBuild - Stop current builds
+     * killPS - Kill command from PS
      * 
-     * @param {boolean} hidden - Stop builds without information message
+     * @param {string} cmd - Command to kill
+     * @param {boolean} hidden - Kill without information message
      * 
      * @api public
      */
-    stopBuild(hidden) {
+    killPS(cmd, hidden) {
         channel.show();
-        var stopCommand = shell.exec('PS -A | grep "node /usr/local/bin/ti build"', { async: true });
+        var stopCommand = shell.exec('PS -A | grep "' + cmd, { async: true });
 
         stopCommand.stdout.on('data', function (data) { // tslint:disable-line
             var pss = data.split('\n');
             pss.every(str => {
-                if (str.includes('node /usr/local/bin/ti build -p')) {
+                if (str.includes(cmd)) {
                     var pid = str.split(' ')[0];
 
                     channel.appendLine('kill ' + pid);
