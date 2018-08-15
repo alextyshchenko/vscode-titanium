@@ -11,7 +11,17 @@
         "vscode": "^1.24.0"
     },
     "categories": [
-        "Extension Packs"
+        "Extension Packs", "Other"
+    ],
+    "keywords": [
+        "javascript",
+        "js",
+        "Endless Aisle",
+        "Titanium",
+        "Appcelerator",
+        "SFCC",
+        "DSS",
+        "keybindings"
     ],
     "main": "./extension",
     "activationEvents": [

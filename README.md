@@ -1,5 +1,9 @@
 # Endless Aisle Package README
 
+## Donation
+
+If you like this extension, you could donate via **[Liqpay](https://www.liqpay.ua/ru/checkout/visacheckout/alextyshch**. Any amount is welcome. It will encourage me to make this extension better and better!
+
 ## Features
 
 ### Available commands
