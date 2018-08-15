@@ -23,14 +23,24 @@ function activate(context) {
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiBuild', () => {
         mainChannel.show();
-        writeInfo('Build started');
-        return new Ti.TiBuild().launch();
+
+        checkAlloyHooks(function() {
+            writeInfo('Build started');
+            return new Ti.TiBuild().launch();
+        }, function() {
+            writeInfo('ERROR - Build failed');
+        });
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiParamsBuild', () => {
         mainChannel.show();
-        writeInfo('Build with params started');
-        return new Ti.TiBuild().launchWithParams();
+
+        checkAlloyHooks(function() {
+            writeInfo('Build with params started');
+            return new Ti.TiBuild().launchWithParams();
+        }, function() {
+            writeInfo('ERROR - Build failed');
+        });
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiClean', () => {
@@ -196,5 +206,36 @@ function activate(context) {
 
         writeInfo('Checking finished');
     }));
+
+
+    function checkAlloyHooks(success, fail) {
+        var alloy = projectRoot + '/plugins/ti.alloy/hooks/alloy.js';
+        fs.exists(alloy, (exists) => {
+            if (exists) {
+                var deepclean = projectRoot + '/plugins/ti.alloy/hooks/deepclean.js';
+                fs.exists(deepclean, (exists) => {
+                    if (exists) {
+                        if (typeof success === 'function') {
+                            success();
+                        }
+                    } else {
+                        writeInfo('ERROR - /plugins/ti.alloy/hooks/deepclean.js not found.');
+                        vscode.window.showErrorMessage('/plugins/ti.alloy/hooks/deepclean.js not found.');
+                        if (typeof fail === 'function') {
+                            fail();
+                        }
+                    }
+                });
+            } else {
+                writeInfo('ERROR - /plugins/ti.alloy/hooks/alloy.js not found.');
+                vscode.window.showErrorMessage('/plugins/ti.alloy/hooks/alloy.js not found.');
+                if (typeof fail === 'function') {
+                    fail();
+                }
+            }
+        });
+
+        
+    }
 }
 exports.activate = activate;

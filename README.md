@@ -83,4 +83,8 @@ Added features: Restart last build, Colors in console output.
 
 Fixed some bugs.
 
+### 1.0.5
+
+Updated errors handling.
+
 **Enjoy!**

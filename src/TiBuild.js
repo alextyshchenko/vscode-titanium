@@ -114,6 +114,9 @@ class TiBuild {
             };
         }
 
+        var saveLine = false;
+        var savedLine = '';
+
         let self = this;
         let command = 'cd "' + vscode.workspace.rootPath + '" && ' +
             (appc ? 'appc ' : '') + 'ti ' + cmd + project_flag
@@ -127,6 +130,10 @@ class TiBuild {
                 console.log('Logger port: ' + loggerPort);
             }
 
+            if (saveLine) {
+                savedLine = data;
+            }
+
             channel.append(data);
 
             if (data.includes('End simulator log')) {
@@ -136,6 +143,20 @@ class TiBuild {
             if (data.includes('Appcelerator Login required to continue') || data.includes('Session invalid. Please log in again')) {
                 self.killPS('ti build', true);
                 self.login();
+            }
+
+            if (data.includes('If you need a new guid')) {
+                saveLine = true;
+
+                setTimeout(function() {
+                    var newGuid = savedLine.split('\n')[0].replace(/ /g, '');
+                    channel.appendLine('I will set new guid: ' + newGuid);
+                    shell.exec('cp ' + vscode.workspace.rootPath + '/tiapp.xml ' + vscode.workspace.rootPath + '/tiapp.xml.tmp && sed -e "s/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX/f166aeae-b12e-487b-a915-003e2085f24d/g" ' + vscode.workspace.rootPath + '/tiapp.xml.tmp > ' + vscode.workspace.rootPath + '/tiapp.xml && rm ' + vscode.workspace.rootPath + '/tiapp.xml.tmp');
+                    channel.appendLine('Please restart build');
+                    channel.show();
+                }, 2000);
+            } else {
+                saveLine = false;
             }
 
         });
@@ -162,9 +183,18 @@ class TiBuild {
                 }, 1000);
             }
 
+            if (data.includes('tiapp.xml contains an invalid guid')) {
+                channel.appendLine('Please update guid in tiapp.xml');
+            }
+
             if (data.includes('Invalid developer certificate')) {
                 channel.append('Please execute: "ti setup" in terminal and select "iOS Settings"');
             }
+
+            if (data.includes('Couldn\'t find module: config/user')) {
+                channel.append('Please create /app/assets/config/user.js, you can rename /app/assets/config/user.js.sample');
+            }
+            
         });
         channel.show();
     }
