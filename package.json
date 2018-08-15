@@ -14,14 +14,11 @@
         "Extension Packs", "Other"
     ],
     "keywords": [
-        "javascript",
-        "js",
         "Endless Aisle",
         "Titanium",
         "Appcelerator",
         "SFCC",
-        "DSS",
-        "keybindings"
+        "DSS"
     ],
     "main": "./extension",
     "activationEvents": [
