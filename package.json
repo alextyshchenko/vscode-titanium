@@ -59,6 +59,14 @@
                 "title": "EA: Restart last build"
             },
             {
+                "command": "eapackage.updateSdk",
+                "title": "EA: Update SDK"
+            },
+            {
+                "command": "eapackage.showTiapp",
+                "title": "EA: Show Tiapp.xml"
+            },
+            {
                 "command": "eapackage.connectLogger",
                 "title": "EA: Connect to logger"
             }

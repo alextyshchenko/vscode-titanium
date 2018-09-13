@@ -24,11 +24,15 @@ function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiBuild', () => {
         mainChannel.show();
 
+        var buildTime = new Date();
+        var min = buildTime.getMinutes();
+        var timeStr = buildTime.getHours() + ':' + ((min < 10) ? '0' + min : min);
+
         checkAlloyHooks(function() {
-            writeInfo('Build started');
+            writeInfo('Build started ' + timeStr);
             return new Ti.TiBuild().launch();
         }, function() {
-            writeInfo('ERROR - Build failed');
+            writeInfo('ERROR - Build failed ' + timeStr);
         });
     }));
 
@@ -65,6 +69,19 @@ function activate(context) {
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.repeatLast', () => {
         return new Ti.TiBuild().executeLastBuild();
+    }));
+
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.showTiapp', () => {
+        return showTiappPreview();
+    }));
+
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.updateSdk', () => { 
+        shell.exec("appc ti sdk install", function (code, output) {
+            if (!output.includes("New version available!")) {
+                writeInfo('New version not found');
+                vscode.window.showInformationMessage('New version not found');
+            }
+        });
     }));
 
     if (vscode.workspace.workspaceFolders == undefined) {
@@ -234,7 +251,86 @@ function activate(context) {
                 }
             }
         });
+    }
 
+
+    function showTiappPreview() {
+        var tiBuild = new Ti.TiBuild();
+        var tiappInfo = {};
+        var tiInfo = {};
+        
+        tiBuild.getTiInfo().then(function(data) {
+            tiInfo = data;
+        }).then(tiBuild.getProjectConfig).then(function(data) {
+            tiappInfo = data;
+        }).then(function() {
+            const panel = vscode.window.createWebviewPanel('tiappPreview', "Tiapp preview", vscode.ViewColumn.Two, {});
+            panel.webview.html = getWebviewContent();
+        });
+        
+        function prepareObject (obj, lvl = 0) {
+            lvl++;
+            var content = '';
+
+            if (lvl > 5) return '';
+            Object.keys(obj).forEach(function(key) {
+                if (skipList(key)) {
+                    if (typeof obj[key] == 'object') {
+                        content = content + prepareObject(obj[key], lvl);
+                    }
+                } else {
+                    switch (typeof obj[key]) {
+                        case 'object':
+                            content = content + '<div><h3>' + key + '</h3><div style="padding-left: 30px;">' + prepareObject(obj[key], lvl) + '</div></div>';
+                            break;
+
+                        case 'boolean':
+                            content = content + '<div><h4 style="color:' + (obj[key] ? 'green' : 'red') + ';">' + key + ': </h4><input type="checkbox" ' + (obj[key] ? 'checked' : '') + ' disabled="true" /></div>';
+                            break;
+                    
+                        default:
+                            content = content + '<div><h4 style="' + ((obj[key].length == 0) ? 'color: red;' : '') + '">' + key + ': </h4><span>' + obj[key] + '</span></div>';
+                            break;
+                    }
+                }
+            });
+
+            return content;
+        }
+
+        function skipList(key) {
+            switch (key) {
+                case 'ios':
+                case 'managed':
+                    return true;
+                default:
+                    return false;
+                    break;
+            }
+        }
+
+        function getWebviewContent() {
+            return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Cat Coding</title>
+
+                <style>
+                 div {
+                     margin-top: 5px;
+                 }
+                 h4 {
+                    display: inline;
+                 }
+                </style>
+            </head>
+            <body>
+                ${prepareObject(tiappInfo)}
+            </body>
+            </html>`;
+            }
         
     }
 }

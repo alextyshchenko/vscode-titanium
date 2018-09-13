@@ -64,8 +64,16 @@ var BuildOption;
     BuildOption[BuildOption["Shadow"] = 1] = "Shadow";
     BuildOption[BuildOption["Appify"] = 2] = "Appify";
 })(BuildOption = exports.BuildOption || (exports.BuildOption = {}));
-let channel = vscode.window.createOutputChannel("titanium");
+var channel = vscode.window.createOutputChannel("titanium");
 class TiBuild {
+
+    getProjectConfig() {
+        return getProjectConfig();
+    }
+
+    getTiInfo() {
+        return updateTiInfo();
+    }
     /**
      * reinitLogger - Reconnect to simulator logger
      * 
@@ -558,9 +566,20 @@ class TiBuild {
      */
     clean() {
         return getProjectConfig()
+            .then(function() {
+                let command = 'cd "' + vscode.workspace.rootPath + '" && rm -rf ./i18n/';
+                console.log(command);
+                channel.appendLine('Command: ' + command);
+                var ti_command = shell.exec(command);
+            }).then(function() {
+                let command = 'cd "' + vscode.workspace.rootPath + '" && rm -rf ./platform/';
+                console.log(command);
+                channel.appendLine('Command: ' + command);
+                var ti_command = shell.exec(command);
+            })
             .then(() => {
-            return this.executeTiCommand('clean', false);
-        });
+                this.executeTiCommand('clean', false);
+            });
     }
 }
 exports.TiBuild = TiBuild;
