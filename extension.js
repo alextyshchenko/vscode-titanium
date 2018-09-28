@@ -39,11 +39,15 @@ function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiParamsBuild', () => {
         mainChannel.show();
 
+        var buildTime = new Date();
+        var min = buildTime.getMinutes();
+        var timeStr = buildTime.getHours() + ':' + ((min < 10) ? '0' + min : min);
+
         checkAlloyHooks(function() {
-            writeInfo('Build with params started');
+            writeInfo('Build with params started ' + timeStr);
             return new Ti.TiBuild().launchWithParams();
         }, function() {
-            writeInfo('ERROR - Build failed');
+            writeInfo('ERROR - Build failed ' + timeStr);
         });
     }));
 

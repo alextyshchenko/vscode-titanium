@@ -319,10 +319,10 @@ class TiBuild {
      * @api private
      */
     launchIosSim(family, udid) {
-        if (udid) {
-            return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + udid + '" --log-level info', false);
-        }
         let config = vscode.workspace.getConfiguration("eapackage");
+        if (udid) {
+            return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + udid + '" --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info'), false);
+        }
         var simulators = Object
             .keys(info.ios.simulators.ios)
             .reduce((acc, ver) => acc.concat(info.ios.simulators.ios[ver]), []);
@@ -412,9 +412,14 @@ class TiBuild {
      * @api private
      */
     launchIosDevice(profile_uuid, certName, deviceUDID) {
+        let config = vscode.workspace.getConfiguration("eapackage");
         if (deviceUDID) {
-            return this.executeTiCommand('build -p ios  -T device -V "' + certName + '" -P "' + profile_uuid + '" -C "' + deviceUDID + '" --no-prompt --skip-js-minify --log-level info', true);
+            return this.executeTiCommand('build -p ios  -T device -V "' + certName + '" -P "' + profile_uuid + '" -C "' + deviceUDID + '" --no-prompt --skip-js-minify --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info'), true);
         }
+        if (info.ios.devices[0].udid === 'itunes') {
+            info.ios.devices.splice(0, 1);
+        }
+
         if (info.ios.devices.length === 1) {
             channel.appendLine('Found only one device. Selected: ' + info.ios.devices[0].name + ' UDID: ' + info.ios.devices[0].name);
             vscode.window.showInformationMessage('Found only one device. Selected: ' + info.ios.devices[0].name);
@@ -433,25 +438,47 @@ class TiBuild {
     launchDevice() {
         var certs = Object
             .keys(info.ios.certs.keychains);
-        
-        if (certs.length == 0 || info.ios.certs.keychains[certs[0]].developer.length == 0) {
+
+        var certificates = [];
+
+        certs.forEach(function(key) {
+            let devCerts = info.ios.certs.keychains[key].developer;
+            for (let i=0;i<devCerts.length;i++) {
+                certificates.push(devCerts[i]);
+            }
+            
+        });
+
+        if (certs.length == 0 || certificates.length == 0) {
             vscode.window.showInformationMessage('Developer certificate not found! Please execute: "ti setup" in terminal and select "iOS Settings"');
         } else {
-            return vscode.window.showQuickPick(info.ios.certs.keychains[certs[0]].developer.map(a => a.name))
-            .then(certName => {
+
+            return new Promise((resolve, reject) => {
+                if (certificates.length === 1) {
+                    resolve(certificates[0].name);
+                } else {
+                    resolve(vscode.window.showQuickPick(certificates.map(a => a.name)));
+                }
+            }).then(certName => {
                 if (!certName) return;
-                
                 var dev_profiles = info.ios.provisioning.development
                     .filter(o => !o.expired && !o.invalid)
                     .filter(o => tiapp['id'].includes(o.appId.replace(/\*/g, "")));
-                return vscode.window.showQuickPick(dev_profiles.map(a => a.uuid + " " + a.name))
-                .then(s => {
+
+                return new Promise((resolve, reject) => {
+                    if (dev_profiles.length === 1) {
+                        resolve(dev_profiles[0].uuid);
+                    } else {
+                        resolve(vscode.window.showQuickPick(dev_profiles.map(a => a.uuid + " " + a.name)));
+                    }
+                }).then(s => {
                     if (!s) return;
 
                     let profile = dev_profiles.find(a => a.uuid === s.split(" ")[0]);
                     return this.launchIosDevice(profile.uuid, certName, null);
                 });
             });
+
         }
     }
 
@@ -461,6 +488,7 @@ class TiBuild {
      * @api private
      */
     launchIosDist(distType) {
+        let config = vscode.workspace.getConfiguration("eapackage");
         var provisions = info.ios.provisioning[distType.replace("dist-", "")]
             .filter(o => !o.expired && !o.invalid)
             .filter(o => tiapp['id'].includes(o.appId.replace(/\*/g, "")));
@@ -475,7 +503,7 @@ class TiBuild {
                 return;
             }
 
-            return this.executeTiCommand('build -p ios  -T ' + distType + ' -P "' + provision.uuid + '"' + ' -O dist --deploy-type production --no-prompt --skip-js-minify --log-level info', true);
+            return this.executeTiCommand('build -p ios  -T ' + distType + ' -P "' + provision.uuid + '"' + ' -O dist --deploy-type production --no-prompt --skip-js-minify --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info'), true);
         });
     }
 
@@ -547,6 +575,11 @@ class TiBuild {
      */
     showDeploymentTargetPicker() {
         var availableTargets = Object.keys(tiapp["deployment-targets"]).filter(a => tiapp["deployment-targets"][a]);
+
+        if (availableTargets.length === 1) {
+            return availableTargets[0];
+        }
+
         return vscode.window.showQuickPick(availableTargets);
     }
 

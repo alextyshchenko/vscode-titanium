@@ -87,4 +87,9 @@ Fixed some bugs.
 
 Updated errors handling.
 
+### 1.0.6
+
+Updated builds.
+Added log level setting
+
 **Enjoy!**
