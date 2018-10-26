@@ -489,21 +489,58 @@ class TiBuild {
      */
     launchIosDist(distType) {
         let config = vscode.workspace.getConfiguration("eapackage");
-        var provisions = info.ios.provisioning[distType.replace("dist-", "")]
-            .filter(o => !o.expired && !o.invalid)
-            .filter(o => tiapp['id'].includes(o.appId.replace(/\*/g, "")));
-        return vscode.window.showQuickPick(provisions.map(a => a.uuid + " " + a.name))
-        .then(profileName => {
-            if (!profileName) return;
 
-            let provision = provisions.find(a => a.uuid === profileName.split(" ")[0]);
+        var distribType = 'adhoc';
+        var provisionType = 'adhoc';
 
-            if (!provision) {
-                vscode.window.showErrorMessage("Provision not found.");
-                return;
+        switch (distType) {
+            case 'Enterprise Ad Hoc':
+                provisionType = 'enterprise';
+                break;
+            case 'App Store':
+                distribType = 'appstore';
+                provisionType = 'appstore';
+                break;
+        }
+
+        var certs = Object
+            .keys(info.ios.certs.keychains);
+
+        var certificates = [];
+
+        certs.forEach(function(key) {
+            let devCerts = info.ios.certs.keychains[key].distribution;
+            for (let i=0;i<devCerts.length;i++) {
+                certificates.push(devCerts[i]);
             }
+            
+        });
 
-            return this.executeTiCommand('build -p ios  -T ' + distType + ' -P "' + provision.uuid + '"' + ' -O dist --deploy-type production --no-prompt --skip-js-minify --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info'), true);
+        return new Promise((resolve, reject) => {
+            if (certificates.length === 1) {
+                resolve(certificates[0].name);
+            } else {
+                resolve(vscode.window.showQuickPick(certificates.map(a => a.name)));
+            }
+        }).then(certName => {
+            if (!certName) return;
+        
+            var provisions = info.ios.provisioning[provisionType]
+                .filter(o => !o.expired && !o.invalid)
+                .filter(o => tiapp['id'].includes(o.appId.replace(/\*/g, "")));
+            return vscode.window.showQuickPick(provisions.map(a => a.uuid + " " + a.name))
+            .then(profileName => {
+                if (!profileName) return;
+
+                let provision = provisions.find(a => a.uuid === profileName.split(" ")[0]);
+
+                if (!provision) {
+                    vscode.window.showErrorMessage("Provision not found.");
+                    return;
+                }
+
+                return this.executeTiCommand('build -p ios  -T dist-' + distribType + ' --distribution-name "' + certName + '" -P "' + provision.uuid + '" -O ./dist --deploy-type production --no-prompt --skip-js-minify --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info'), true);
+            });
         });
     }
 
@@ -589,7 +626,7 @@ class TiBuild {
      * @api private
      */
     showBuildTypePicker() {
-        return vscode.window.showQuickPick(["simulator", "device", ...["dist-adhoc", "dist-enterprise", "dist-distribution", "dist-appstore"]]);
+        return vscode.window.showQuickPick(["simulator", "device", ...["Ad Hoc", "Enterprise Ad Hoc", "App Store"]]);
     }
 
     /**
