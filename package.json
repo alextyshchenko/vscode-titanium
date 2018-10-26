@@ -2,7 +2,7 @@
     "name": "endless-aisle-package",
     "displayName": "Endless Aisle Package",
     "description": "Package for SFCC Endless Aisle on Titanium/Appcelerator",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "publisher": "AlexT",
     "repository": "https://github.com/alextyshchenko/vscode-titanium",
     "license": "MIT",
