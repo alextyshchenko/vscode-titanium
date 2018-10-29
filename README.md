@@ -92,4 +92,12 @@ Updated errors handling.
 Updated builds.
 Added log level setting
 
+### 1.0.7
+
+Fixed distribution builds
+
+### 1.0.8
+
+Added uploading to Diawi.com
+
 **Enjoy!**

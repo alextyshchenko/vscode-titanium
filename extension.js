@@ -79,6 +79,10 @@ function activate(context) {
         return showTiappPreview();
     }));
 
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.uploadToDiawi', () => {
+        return new Ti.TiBuild().uploadToDiawi();
+    }));
+
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.updateSdk', () => { 
         shell.exec("appc ti sdk install", function (code, output) {
             if (!output.includes("New version available!")) {

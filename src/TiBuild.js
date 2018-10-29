@@ -1,7 +1,9 @@
 "use strict";
 const vscode = require("vscode");
+const fs = require('fs');
 var shell = require('shelljs');
 var project_flag = ' --project-dir "' + vscode.workspace.rootPath + '"';
+var distributionFolder = 'dist/';
 var info;
 var defaultLoggerPort = 42336;
 let loggerPort = null;
@@ -167,6 +169,15 @@ class TiBuild {
                 saveLine = false;
             }
 
+            if (data.includes('Packaging complete')) {
+                vscode.window.showQuickPick(['Upload build to Diawi.com', 'Skip uploading'])
+                .then(upload => {
+                    if (upload == 'Skip uploading') return;
+
+                    self.uploadToDiawi();
+                });
+            }
+
         });
 
         ti_command.stderr.on('data', function (data) { // tslint:disable-line
@@ -202,7 +213,7 @@ class TiBuild {
             if (data.includes('Couldn\'t find module: config/user')) {
                 channel.append('Please create /app/assets/config/user.js, you can rename /app/assets/config/user.js.sample');
             }
-            
+
         });
         channel.show();
     }
@@ -307,6 +318,55 @@ class TiBuild {
             if (!hidden) {
                 vscode.window.showInformationMessage('All builds stopped');
             }
+        });
+    }
+
+    /**
+     * uploadToDiawi - Upload distribution build to Diawi.com
+     * 
+     * @api public
+     */
+    uploadToDiawi() {
+        getProjectConfig()
+        .then(function () {
+            var filePath = vscode.workspace.rootPath + '/' + distributionFolder + tiapp.name + '.ipa';
+            console.log(filePath);
+            fs.exists(filePath, (exists) => {
+                if (exists) {
+                    channel.appendLine("Build file found: " + filePath);
+                    console.log("Build file found: " + filePath);
+                    let config = vscode.workspace.getConfiguration("eapackage");
+                    var token = config['diawiToken'];
+                    var appPassword = config['diawiPass'] || '';
+                    if (token) {
+                        channel.appendLine("Diawi token found.");
+                        console.log("Diawi token found.");
+
+                        channel.appendLine("Uploading");
+                        console.log("Uploading");
+                        var Diawi = require("./diawi.js");
+                        new Diawi({ 
+                            token: token, 
+                            path: filePath, 
+                            password: appPassword, 
+                            comment: '' })
+                            .on("complete", function(res) {
+                                channel.appendLine("Build uploaded, diawi hash: " + res.hash + " , installation link: " + res.link + " , QR Code link: https://api.qrserver.com/v1/create-qr-code/?data=" + res.link + "&size=200x200, password: " + appPassword);
+                                console.log("Build uploaded, diawi hash:  " + res.hash + " , installation link: " + res.link + " , password: " + appPassword);
+                            })
+                            .on("error", function(error) {
+                                channel.appendLine("Uploading failed: " + error);
+                                console.log("Uploading failed: ", error);
+                            });
+                    } else {
+                        channel.appendLine("Diawi token not found. Please generate token on page https://dashboard.diawi.com/profile/api and fill setting.");
+                        return vscode.window.showErrorMessage("Diawi token not found. Please generate token on page https://dashboard.diawi.com/profile/api and fill setting.");
+                    }
+                } else {
+                    channel.appendLine("Build file not found: " + exists);
+                    return vscode.window.showErrorMessage("Build file not found: " + exists);
+                }
+            });
         });
     }
     
@@ -539,7 +599,7 @@ class TiBuild {
                     return;
                 }
 
-                return this.executeTiCommand('build -p ios  -T dist-' + distribType + ' --distribution-name "' + certName + '" -P "' + provision.uuid + '" -O ./dist --deploy-type production --no-prompt --skip-js-minify --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info'), true);
+                return this.executeTiCommand('build -p ios  -T dist-' + distribType + ' --distribution-name "' + certName + '" -P "' + provision.uuid + '" -O ' + distributionFolder + ' --deploy-type production --no-prompt --skip-js-minify --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info'), true);
             });
         });
     }

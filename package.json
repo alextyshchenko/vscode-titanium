@@ -2,7 +2,7 @@
     "name": "endless-aisle-package",
     "displayName": "Endless Aisle Package",
     "description": "Package for SFCC Endless Aisle on Titanium/Appcelerator",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "publisher": "AlexT",
     "repository": "https://github.com/alextyshchenko/vscode-titanium",
     "license": "MIT",
@@ -67,6 +67,10 @@
                 "title": "EA: Show Tiapp.xml"
             },
             {
+                "command": "eapackage.uploadToDiawi",
+                "title": "EA: Upload build to diawi.com"
+            },
+            {
                 "command": "eapackage.connectLogger",
                 "title": "EA: Connect to logger"
             }
@@ -126,6 +130,16 @@
                     "type": "string",
                     "default": "info",
                     "description": "Log level"
+                },
+                "eapackage.diawiToken": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Token for diawi.com uploading"
+                },
+                "eapackage.diawiPass": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Password for diawi.com uploading"
                 }
             }
         }
