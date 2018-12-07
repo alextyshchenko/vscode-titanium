@@ -2,7 +2,7 @@
     "name": "endless-aisle-package",
     "displayName": "Endless Aisle Package",
     "description": "Package for SFCC Endless Aisle on Titanium/Appcelerator",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "publisher": "AlexT",
     "repository": "https://github.com/alextyshchenko/vscode-titanium",
     "license": "MIT",
@@ -131,6 +131,11 @@
                     "default": "info",
                     "description": "Log level"
                 },
+                "eapackage.addSimBuildParams": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Additional params for simulator build"
+                },
                 "eapackage.diawiToken": {
                     "type": "string",
                     "default": "",
@@ -150,6 +155,7 @@
     "dependencies": {
         "alloy": "^1.13.1",
         "fs": "^*",
+        "request": "^2.88.0",
         "shelljs": "^0.5.3",
         "tslint": "^5.11.0"
     },

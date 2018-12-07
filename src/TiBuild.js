@@ -342,17 +342,17 @@ class TiBuild {
                         channel.appendLine("Diawi token found.");
                         console.log("Diawi token found.");
 
-                        channel.appendLine("Uploading");
+                        channel.appendLine("Uploading to diawi");
                         console.log("Uploading");
                         var Diawi = require("./diawi.js");
                         new Diawi({ 
                             token: token, 
                             path: filePath, 
-                            password: appPassword, 
+                            password: appPassword || '', 
                             comment: '' })
                             .on("complete", function(res) {
-                                channel.appendLine("Build uploaded, diawi hash: " + res.hash + " , installation link: " + res.link + " , QR Code link: https://api.qrserver.com/v1/create-qr-code/?data=" + res.link + "&size=200x200, password: " + appPassword);
-                                console.log("Build uploaded, diawi hash:  " + res.hash + " , installation link: " + res.link + " , password: " + appPassword);
+                                channel.appendLine("\n----------Build uploaded----------\nName: " + tiapp.name + " " + tiapp.version + "\nDiawi hash: " + res.hash + "\nInstallation link: " + res.link + "\nQR Code link: https://www.diawi.com/qrcode/" + res.hash + "\nPassword: " + appPassword + "\n----------------------------------");
+                                console.log("Build (" + tiapp.name + " " + tiapp.version + ") uploaded, diawi hash: " + res.hash + " , installation link: " + res.link + " , QR Code link: https://www.diawi.com/qrcode/" + res.hash + ", password: " + appPassword + " (Builded by SDK: " + tiapp['sdk-version'] + ")");
                             })
                             .on("error", function(error) {
                                 channel.appendLine("Uploading failed: " + error);
@@ -381,7 +381,7 @@ class TiBuild {
     launchIosSim(family, udid) {
         let config = vscode.workspace.getConfiguration("eapackage");
         if (udid) {
-            return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + udid + '" --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info'), false);
+            return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + udid + '" --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info') + ' ' + config["addSimBuildParams"], false);
         }
         var simulators = Object
             .keys(info.ios.simulators.ios)

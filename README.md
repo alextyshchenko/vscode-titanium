@@ -100,4 +100,9 @@ Fixed distribution builds
 
 Added uploading to Diawi.com
 
+### 1.0.9
+
+Fixed uploading to Diawi.com
+Added field for additional params for simulator builds
+
 **Enjoy!**
