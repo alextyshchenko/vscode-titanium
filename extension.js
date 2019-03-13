@@ -51,6 +51,10 @@ function activate(context) {
         });
     }));
 
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.getOcapiToken', () => {
+        showOcapiPage();
+    }));
+
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.tiClean', () => {
         return new Ti.TiBuild().clean();
     }));
@@ -81,6 +85,10 @@ function activate(context) {
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.uploadToDiawi', () => {
         return new Ti.TiBuild().uploadToDiawi();
+    }));
+
+    context.subscriptions.push(vscode.commands.registerCommand('eapackage.registerApp', () => {
+        //return new Ti.TiBuild().registerApp();
     }));
 
     context.subscriptions.push(vscode.commands.registerCommand('eapackage.updateSdk', () => { 
@@ -259,6 +267,150 @@ function activate(context) {
                 }
             }
         });
+    }
+
+
+    function showOcapiPage() {
+        const panel = vscode.window.createWebviewPanel('ocapiToken', "Get OCAPI token", vscode.ViewColumn.Two, {
+            enableScripts: true
+        });
+        panel.webview.html = getOcapiWebviewContent();
+
+        function sentResultToPage(result) {
+            panel.webview.postMessage({ command: 'result', data: result});
+        }
+
+        panel.webview.onDidReceiveMessage(
+            message => {
+              switch (message.command) {
+                case 'getToken':
+                  getOcapiToken(message.domain, message.client_id, message.client_secret, message.login, message.pass, sentResultToPage);
+                  return;
+              }
+            },
+            undefined,
+            context.subscriptions
+          );
+
+        function getOcapiWebviewContent() {
+            return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Cat Coding</title>
+
+                <style>
+                 div {
+                     margin-top: 5px;
+                 }
+                 h4 {
+                    display: inline-block;
+                    width: 120px;
+                    margin: 4px;
+                 }
+                 .inputData {
+                    width: 250px;
+                 }
+                 .response {
+                    display: inline-block;
+                 }
+                 .button {
+                    margin-top: 10px;
+                 }
+                </style>
+            </head>
+            <body>
+                <div><h4>Domain: </h4><input id="domain" class="inputData" type="text" value="" placeholder="sitename.demandware.net" /></div>
+                <div><h4>Client ID: </h4><input id="client_id" class="inputData" type="text" value="" placeholder="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" /></div>
+                <div><h4>Client Secret: </h4><input id="client_secret" class="inputData" type="text" value="" placeholder="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" /></div>
+                <div><h4>User login: </h4><input id="login" class="inputData" type="text" value="" placeholder="BM user login" /></div>
+                <div><h4>User password: </h4><input id="pass" class="inputData" type="text" value="" placeholder="BM user password" /></div>
+
+                <input id="getButton" class="button" type="button" value="Get token" />
+                <div><h4>Result: </h4><div id="response" class="response"></div></div>
+                
+                <script>
+                    (function() {
+                        const vscode = acquireVsCodeApi();
+                        var getButton = document.getElementById('getButton');
+                        var domain = document.getElementById('domain');
+                        var client_id = document.getElementById('client_id');
+                        var client_secret = document.getElementById('client_secret');
+                        var login = document.getElementById('login');
+                        var pass = document.getElementById('pass');
+                        var response = document.getElementById('response');
+
+                        getButton.addEventListener('click', function() {
+                            vscode.postMessage({
+                                command: 'getToken',
+                                domain: domain.value,
+                                client_id: client_id.value,
+                                client_secret: client_secret.value,
+                                login: login.value,
+                                pass: pass.value,
+                            })
+                        });
+
+
+                        window.addEventListener('message', event => {
+
+                            const message = event.data; // The JSON data our extension sent
+                
+                            switch (message.command) {
+                                case 'result':
+                                    response.innerHTML = message.data;
+                                    break;
+                            }
+                        });
+                    }())
+                </script>
+            </body>
+            </html>`;
+        }
+
+        function getOcapiToken(domain, client_id, client_secret, login, pass, cb) {
+            var request = require('request');
+
+            if (!domain || domain=='') {
+                cb('Invalid domain');
+                return;
+            }
+
+            request({
+                url : 'https://' + domain + '/dw/oauth2/access_token',
+                method: 'POST',
+                headers : {
+                  "Authorization" : "Basic " + new Buffer(login + ":" + pass + ":" + client_secret).toString("base64"), 
+                  "Content-Type" : "application/x-www-form-urlencoded"
+                },
+                form : {
+                    grant_type: 'urn:demandware:params:oauth:grant-type:client-id:dwsid:dwsecuretoken',
+                    client_id: client_id
+                }
+            }, function (error, response, body) {
+                if (error) {
+                    vscode.window.showErrorMessage(error);
+                    console.log(error);
+                }
+
+                var result = {};  
+                try {
+                    result = JSON.parse(body);
+                } catch (error) {
+                    vscode.window.showErrorMessage(error);
+                    console.log(error);
+                }
+            
+                if (result.access_token) {
+                    cb("Bearer " + result.access_token);
+                    console.log("Bearer " + result.access_token);
+                } else {
+                    console.log(body);
+                    cb(body);
+                }
+            });
+        }
     }
 
 

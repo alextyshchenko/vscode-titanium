@@ -2,7 +2,7 @@
     "name": "endless-aisle-package",
     "displayName": "Endless Aisle Package",
     "description": "Package for SFCC Endless Aisle on Titanium/Appcelerator",
-    "version": "1.0.9",
+    "version": "1.1.0",
     "publisher": "AlexT",
     "repository": "https://github.com/alextyshchenko/vscode-titanium",
     "license": "MIT",
@@ -51,6 +51,10 @@
                 "title": "EA: Appcelerator logout"
             },
             {
+                "command": "eapackage.registerApp",
+                "title": "EA: Register application"
+            },
+            {
                 "command": "eapackage.tiStopBuild",
                 "title": "EA: Stop current build"
             },
@@ -73,6 +77,10 @@
             {
                 "command": "eapackage.connectLogger",
                 "title": "EA: Connect to logger"
+            },
+            {
+                "command": "eapackage.getOcapiToken",
+                "title": "EA: Get OCAPI token"
             }
         ],
         "keybindings": [

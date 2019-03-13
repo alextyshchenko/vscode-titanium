@@ -214,6 +214,10 @@ class TiBuild {
                 channel.append('Please create /app/assets/config/user.js, you can rename /app/assets/config/user.js.sample');
             }
 
+            if (data.includes('Application not registered')) {
+                channel.appendLine('Please register application. Command: "EA: Register application"');
+            }
+
         });
         channel.show();
     }
@@ -287,6 +291,23 @@ class TiBuild {
             if (data.includes('Logged Out')) {
                 vscode.window.showInformationMessage('You are Logged out');
             }
+        });
+    }
+
+    registerApp() {
+        getProjectConfig()
+        .then(function () {
+            var command = 'appc new -t app --id "' + tiapp.id + '" -n "' + tiapp.name + '" --project-dir ' + vscode.workspace.rootPath + ' --no-services --platforms ios';
+            channel.appendLine(command);
+            var register_command = shell.exec(command, { async: true });
+
+            register_command.stdout.on('data', function (data) { // tslint:disable-line
+                channel.append(data);
+
+                if (data.includes('new completed.')) {
+                    vscode.window.showInformationMessage('Application registered');
+                }
+            });
         });
     }
 

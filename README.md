@@ -17,6 +17,7 @@ If you like this extension, you could donate via **[Liqpay](https://www.liqpay.u
 * `EA: Appcelerator login` - Login to Appcelerator account
 * `EA: Appcelerator logout` - Logout from Appcelerator account
 * `EA: Stop current build` - Stop current builds
+* `EA: Get OCAPI token` - Get OAuth token for SFCC OCAPI.
 
 
 ### Available key bindings
@@ -104,5 +105,14 @@ Added uploading to Diawi.com
 
 Fixed uploading to Diawi.com
 Added field for additional params for simulator builds
+
+### 1.0.10
+
+Added app registration command "EA: Register application".
+
+### 1.1.0
+
+Added command "EA: Get OCAPI token".
+You can get OAuth token for SFCC OCAPI.
 
 **Enjoy!**
