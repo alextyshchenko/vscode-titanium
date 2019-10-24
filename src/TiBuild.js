@@ -14,6 +14,7 @@ var lastCommand = {
     cmd: '',
     appc: false
 };
+var selectedSimulatorUDID = null;
 
 function updateTiInfo() {
     return new Promise((resolve, reject) => {
@@ -178,6 +179,10 @@ class TiBuild {
                 });
             }
 
+            if (data.includes('Simulator is not available')) {
+                self.installToSim();
+            }
+
         });
 
         ti_command.stderr.on('data', function (data) { // tslint:disable-line
@@ -218,8 +223,40 @@ class TiBuild {
                 channel.appendLine('Please register application. Command: "EA: Register application"');
             }
 
+            if (data.includes('Simulator is not available')) {
+                self.installToSim();
+            }
+
         });
         channel.show();
+    }
+
+    installToSim() {
+        var cmd = 'xcrun simctl boot ' + selectedSimulatorUDID;
+        channel.appendLine('Try to boot simulator.');
+        channel.appendLine(cmd);
+        shell.exec(cmd);
+
+        cmd = 'open /Applications/Xcode.app/Contents/Developer/Applications/Simulator.app/';
+        channel.appendLine(cmd);
+        shell.exec(cmd);
+
+        channel.appendLine('Try to install app manual.');
+        cmd = 'xcrun simctl install ' + selectedSimulatorUDID + ' ' + vscode.workspace.rootPath + '/build/iphone/build/Products/Debug-iphonesimulator/' + tiapp.name + '.app';
+        channel.appendLine(cmd);
+        shell.exec(cmd);
+
+        channel.appendLine('Connecting to logger.');
+        cmd = 'xcrun simctl spawn booted log stream --predicate \'processImagePath endswith "DigitalStore"\'';
+        channel.appendLine(cmd);
+        shell.exec(cmd);
+
+        setTimeout(function() {
+            channel.appendLine('Start application.');
+            cmd = 'xcrun simctl launch booted ' + tiapp.id;
+            channel.appendLine(cmd);
+            shell.exec(cmd);
+        }, 7000);
     }
 
     /**
@@ -402,6 +439,7 @@ class TiBuild {
     launchIosSim(family, udid) {
         let config = vscode.workspace.getConfiguration("eapackage");
         if (udid) {
+            selectedSimulatorUDID = udid;
             return this.executeTiCommand('build -p ios -F ' + family + ' -T simulator -C "' + udid + '" --log-level ' + (config["logLevel"] ? config["logLevel"] : 'info') + ' ' + config["addSimBuildParams"], false);
         }
         var simulators = Object
