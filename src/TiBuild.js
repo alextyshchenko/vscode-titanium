@@ -242,14 +242,13 @@ class TiBuild {
         shell.exec(cmd);
 
         channel.appendLine('Try to install app manual.');
-        cmd = 'xcrun simctl install ' + selectedSimulatorUDID + ' ' + vscode.workspace.rootPath + '/build/iphone/build/Products/Debug-iphonesimulator/' + tiapp.name + '.app';
+        cmd = 'xcrun simctl install ' + selectedSimulatorUDID + ' "' + vscode.workspace.rootPath + '/build/iphone/build/Products/Debug-iphonesimulator/' + tiapp.name + '.app"';
         channel.appendLine(cmd);
         shell.exec(cmd);
 
-        channel.appendLine('Connecting to logger.');
-        cmd = 'xcrun simctl spawn booted log stream --predicate \'processImagePath endswith "DigitalStore"\'';
+        channel.appendLine('Execute for connect to logger.');
+        cmd = 'xcrun simctl spawn booted log stream --predicate \'processImagePath endswith "' + tiapp.name + '"\'';
         channel.appendLine(cmd);
-        shell.exec(cmd);
 
         setTimeout(function() {
             channel.appendLine('Start application.');
