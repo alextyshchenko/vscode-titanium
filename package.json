@@ -164,7 +164,7 @@
         "alloy": "^1.13.1",
         "fs": "^*",
         "request": "^2.88.0",
-        "shelljs": "^0.5.3",
+        "shelljs": "^0.8.5",
         "tslint": "^5.11.0"
     },
     "devDependencies": {
