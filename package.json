@@ -161,7 +161,7 @@
         "postinstall": "node ./node_modules/vscode/bin/install"
     },
     "dependencies": {
-        "alloy": "^1.13.1",
+        "alloy": "^1.17.3",
         "fs": "^*",
         "request": "^2.88.0",
         "shelljs": "^0.5.3",
